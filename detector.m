@@ -1,75 +1,56 @@
-%% DTMF decode
-
-%%
 clear all;
 close all;
 
-[y fs] = wavread('TESTE4_9d8P7d6P5d4P3d2P1d0_100ms.wav');
-plot(y);
+%sinal de entrada
+[data freq] = wavread('teste6.wav');
 
-tsamp = 0.03;
-t = linspace(0,tsamp,tsamp*fs+1);
-M = length(t);
-N = floor(length(y)/M);
-ys = reshape(y(1:(N*M)),M,N);
+%subdivide o sinal de entrada em menos amostras
+sample = 0.03; %fator de amostragem
+t = linspace(0,sample,sample*freq+1);
+width = length(t);
+height = floor(length(data)/width);
+dataS = reshape(data(1:(height*width)),width,height); %amostra o sinal de entrada
 
-%%
+LowF = [697 770 852 941]; %linhas - Frequencias baixas
+HighF = [1209 1336 1477 1633]; %colunas - Frequencias altas
 
-%pause
+%Separação do sinal nas frequências de interesse
+%FREQUÊNCIAS BAIXAS
+w = exp(1j*2*pi*LowF'*t);
+dadosLow = abs(w*dataS)/width;
 
-fL = [697 770 852 941];
-fH = [1209 1336 1477 1633];
-omega = 2*pi*fL';
-w = exp(1j*omega*t);
-yL = abs(w*ys)/M;
-plot(yL');
+%FREQUÊNCIAS ALTAS
+w = exp(1j*2*pi*HighF'*t);
+dadosHigh = abs(w*dataS)/width;
 
-%%
-%pause
+%ignora o ruido menos intenso (threshold) e converte os dados
+%para a escala de 1 a 4 (cada linha das matrizes de dados representa uma frequencia)
+%que servirá de indice mais adiante
+scale = 1:4;
+threshold = 0.07;
+low = scale*(dadosLow>threshold);
+high = scale*(dadosHigh>threshold);
 
-omega = 2*pi*fH';
-w = exp(1j*omega*t);
-yH = abs(w*ys)/M;
-plot(yH');
+%Procura por diferenças entre zeros e valores positivos 
+%e amostra o indice de cada numero digitado
+indice = find(diff([0 low])>0);
 
-%%
-%pause
+%Os vetores "linha" e "coluna" vão armazenar a posição
+%do caractere na matriz "teclas"
+linha = low(indice);
+coluna = high(indice);
 
-ndx = 1:4;
-y1 = ndx*(yL>0.07);
-subplot(2,1,1);
-plot(y1);
-ylabel('low freq index');
-subplot(2,1,2);
-y2 = ndx*(yH>0.07);
-plot(y2);
-ylabel('high freq index');
+teclas = ['123A'; '456B'; '789C'; '*0#D'];
 
-%%
-%pause
+qtd = length(linha); %numero de teclas pressionadas
 
-% look for zero to positive differences
-% and then a few samples later
-ndx = find(diff(y1)>0);
-ndx = find(diff([0 y1])>0);
-n1 = y1(ndx+2);
-n2 = y2(ndx+2);
-
-n1 = y1(ndx);
-n2 = y2(ndx);
-
-[n1' n2']
-
-%%
-%pause
-
-key = ['147*'; '2580'; '369#'; 'ABCD'];
-
-for k=1:length(n1)
-    pn(k) =key(n2(k),n1(k));
+%decodifica as teclas pressionadas
+for x=1:qtd
+    tons(x) = teclas(linha(x),coluna(x));
 end
-disp('phone number:');
-disp(pn);
+
+disp('Numeros digitados: ');
+disp(tons);
 
 
 
